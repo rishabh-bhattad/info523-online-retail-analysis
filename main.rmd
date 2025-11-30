@@ -46,10 +46,10 @@ sum(is.na(retail_raw$CustomerID))
 
 ```{r}
 retail_clean <- retail_raw %>%
-  # drop missing customer IDs
+  # remove missing customer IDs
   filter(!is.na(CustomerID)) %>%
   filter(Quantity > 0, UnitPrice > 0) %>%
-  # remove cancelled invoices - starts with C
+  # remove cancelled invoices
   filter(!str_starts(InvoiceNo, "C")) %>%
   
   mutate(
@@ -61,10 +61,64 @@ retail_clean <- retail_raw %>%
     TotalPrice = Quantity * UnitPrice
   )
 
-# Quick checks after cleaning
+# check cleaned data
 glimpse(retail_clean)
 summary(retail_clean$Quantity)
 summary(retail_clean$UnitPrice)
 sum(is.na(retail_clean$CustomerID))
 n_distinct(retail_clean$CustomerID)
+```
+
+# Association Rule Mining
+
+```{r}
+# filter UK data
+retail_uk <- retail_clean %>%
+  filter(Country == "United Kingdom")
+
+# build invoice-item pairs
+trans_df <- retail_uk %>%
+  select(InvoiceNo, Description) %>%
+  distinct()
+
+# make transactions
+trans_list <- split(trans_df$Description, trans_df$InvoiceNo)
+retail_trans <- as(trans_list, "transactions")
+
+# show transaction summary
+retail_trans
+summary(retail_trans)
+
+# Run Apriori algorithm
+rules <- apriori(
+  retail_trans,
+  parameter = list(supp = 0.001, conf = 0.5, minlen = 2)
+)
+
+# top rules
+summary(rules)
+rules_top <- sort(rules, by = "lift", decreasing = TRUE)
+inspect(head(rules_top, 20))
+
+# barplot of top rules
+rules_df <- as(rules_top[1:15], "data.frame")
+
+library(ggplot2)
+
+p <- ggplot(rules_df, aes(x = reorder(rules, lift), y = lift)) +
+  geom_col(fill = "#2E86C1") +
+  coord_flip() +
+  labs(
+    title = "Top 15 Association Rules by Lift",
+    x = "Rule",
+    y = "Lift"
+  ) +
+  theme_minimal(base_size = 12)
+
+p
+
+# save plot
+png("plots/assoc_rules_barplot.png", width = 1400, height = 1000)
+print(p)
+dev.off()
 ```
