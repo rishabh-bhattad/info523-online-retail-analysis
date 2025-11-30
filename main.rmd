@@ -1,0 +1,70 @@
+---
+title: "INFO 523 – Online Retail Data Mining Project"
+author: "Rishabh Bhattad"
+output:
+  word_document: default
+---
+
+# Introduction
+
+This project uses the Kaggle Online Retail dataset to perform association rule mining, clustering, and classification.
+
+# Setup
+```{r}
+install.packages("factoextra")
+install.packages("caret")
+install.packages("tidyverse")
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(arules)
+library(arulesViz)
+library(cluster)
+library(factoextra)
+library(caret)
+
+set.seed(42)
+```
+
+# Load Data
+
+```{r}
+retail_raw <- read_csv("data/online_retail.csv")
+glimpse(retail_raw)
+```
+
+# Basic Cleaning & EDA
+
+```{r}
+summary(retail_raw)
+sum(is.na(retail_raw$CustomerID))
+```
+
+# Data Cleaning & Feature Engineering
+
+```{r}
+retail_clean <- retail_raw %>%
+  # drop missing customer IDs
+  filter(!is.na(CustomerID)) %>%
+  filter(Quantity > 0, UnitPrice > 0) %>%
+  # remove cancelled invoices - starts with C
+  filter(!str_starts(InvoiceNo, "C")) %>%
+  
+  mutate(
+    InvoiceDate = lubridate::parse_date_time(InvoiceDate,
+                                             orders = c("d/m/Y H:M", "d/m/Y H:M:S",
+                                                        "m/d/Y H:M", "m/d/Y H:M:S")),
+    InvoiceYear = lubridate::year(InvoiceDate),
+    InvoiceMonth = lubridate::floor_date(InvoiceDate, unit = "month"),
+    TotalPrice = Quantity * UnitPrice
+  )
+
+# Quick checks after cleaning
+glimpse(retail_clean)
+summary(retail_clean$Quantity)
+summary(retail_clean$UnitPrice)
+sum(is.na(retail_clean$CustomerID))
+n_distinct(retail_clean$CustomerID)
+```
