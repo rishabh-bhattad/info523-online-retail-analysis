@@ -24,6 +24,7 @@ library(arulesViz)
 library(cluster)
 library(factoextra)
 library(caret)
+library(reshape2)
 
 set.seed(42)
 ```
@@ -120,5 +121,185 @@ p
 # save plot
 png("plots/assoc_rules_barplot.png", width = 1400, height = 1000)
 print(p)
+dev.off()
+```
+
+# Customer Clustering
+
+```{r}
+# build customer features
+cust_df <- retail_clean %>%
+  group_by(CustomerID) %>%
+  summarise(
+    total_spent = sum(TotalPrice),
+    total_qty = sum(Quantity),
+    num_orders = n_distinct(InvoiceNo),
+    avg_order = mean(TotalPrice)
+  )
+
+# remove extreme spenders (top 1%) for more stable clusters
+q99 <- quantile(cust_df$total_spent, 0.99, na.rm = TRUE)
+cust_df <- cust_df %>%
+  filter(total_spent <= q99)
+
+# log transform to reduce skew
+cust_feats <- cust_df %>%
+  mutate(
+    log_total_spent = log1p(total_spent),
+    log_total_qty = log1p(total_qty),
+    log_num_orders = log1p(num_orders),
+    log_avg_order = log1p(avg_order)
+  ) %>%
+  select(CustomerID, starts_with("log_"))
+
+# scale data
+cust_scaled <- scale(cust_feats[, -1])
+
+# find 3 clusters
+set.seed(42)
+km <- kmeans(cust_scaled, centers = 3, nstart = 25)
+
+# add cluster labels
+cust_feats$cluster <- km$cluster
+
+# assign readable segment names
+cust_feats$segment <- dplyr::case_match(
+  cust_feats$cluster,
+  1 ~ "High-Value Frequent Buyers",
+  2 ~ "Low-Value Casual Buyers",
+  3 ~ "Large-Basket Buyers"
+)
+
+# view segment sizes
+table(cust_feats$segment)
+
+# barplot of cluster sizes
+cluster_sizes <- as.data.frame(table(cust_feats$segment))
+colnames(cluster_sizes) <- c("segment", "count")
+
+p1 <- ggplot(cluster_sizes, aes(x = segment, y = count, fill = segment)) +
+  geom_col() +
+  labs(
+    title = "Customer Segments (Defined by Purchasing Behavior)",
+    x = "Segment",
+    y = "Customer count",
+    fill = "Segment"
+  ) +
+  theme_minimal(base_size = 12)
+
+p1
+
+# save barplot
+png("plots/cluster_sizes.png", width = 1200, height = 900)
+print(p1)
+dev.off()
+
+# join cluster labels back to original (unlogged) features
+cust_summary <- cust_df %>%
+  inner_join(cust_feats %>% select(CustomerID, segment), by = "CustomerID") %>%
+  group_by(segment) %>%
+  summarise(
+    avg_total_spent = mean(total_spent),
+    avg_total_qty = mean(total_qty),
+    avg_num_orders = mean(num_orders),
+    avg_order_value = mean(avg_order),
+    .groups = "drop"
+  )
+
+# reshape for profile plot
+cluster_long <- cust_summary %>%
+  tidyr::pivot_longer(
+    cols = c(avg_total_spent, avg_total_qty, avg_num_orders, avg_order_value),
+    names_to = "metric",
+    values_to = "value"
+  ) %>%
+  mutate(
+    metric = dplyr::recode(
+      metric,
+      "avg_total_spent" = "Total spent (GBP)",
+      "avg_total_qty" = "Total quantity",
+      "avg_num_orders" = "Number of orders",
+      "avg_order_value" = "Avg order value (GBP)"
+    )
+  )
+
+p2 <- ggplot(cluster_long, aes(x = segment, y = value, fill = segment)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ metric, scales = "free_y") +
+  labs(
+    title = "Customer Segment Profiles",
+    x = "Segment",
+    y = "Average metric value",
+    fill = "Segment"
+  ) +
+  theme_minimal(base_size = 12)
+
+p2
+
+# save profile plot
+png("plots/cluster_segment_profile.png", width = 1600, height = 900)
+print(p2)
+dev.off()
+```
+
+
+# Classification
+
+```{r}
+# create label for high-value customers
+cust_summary2 <- cust_df %>%
+  inner_join(cust_feats %>% select(CustomerID, segment), by = "CustomerID") %>%
+  mutate(label = ifelse(segment == "High-Value Frequent Buyers", "High", "Not_High")) %>%
+  mutate(label = factor(label))
+
+# split data
+set.seed(42)
+train_index <- createDataPartition(cust_summary2$label, p = 0.8, list = FALSE)
+train_data <- cust_summary2[train_index, ]
+test_data <- cust_summary2[-train_index, ]
+
+# build features
+train_x <- train_data %>% select(total_spent, total_qty, num_orders, avg_order)
+train_y <- train_data$label
+
+test_x <- test_data %>% select(total_spent, total_qty, num_orders, avg_order)
+test_y <- test_data$label
+
+# train decision tree
+model_dt <- train(
+  train_x, train_y,
+  method = "rpart",
+  trControl = trainControl(method = "cv", number = 5)
+)
+
+model_dt
+
+# predictions
+pred_dt <- predict(model_dt, test_x)
+
+# confusion matrix
+cm_dt <- confusionMatrix(pred_dt, test_y)
+cm_dt
+
+# plot variable importance
+imp_dt <- varImp(model_dt)$importance
+imp_dt$Feature <- rownames(imp_dt)
+
+p3 <- ggplot(imp_dt, aes(x = reorder(Feature, Overall), y = Overall, fill = Feature)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Feature Importance for Predicting High-Value Customers",
+    x = "Feature",
+    y = "Importance Score",
+    fill = "Feature"
+  ) +
+  theme_minimal(base_size = 14)
+
+p3
+
+# save importance plot
+png("plots/classification_feature_importance.png", width = 1400, height = 1000)
+print(p3)
 dev.off()
 ```
