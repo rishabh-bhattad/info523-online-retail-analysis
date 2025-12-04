@@ -74,6 +74,7 @@ n_distinct(retail_clean$CustomerID)
 ```
 
 # Association Rule Mining
+## 1. Apriori Algorithm
 
 ```{r}
 # filter UK data
@@ -127,7 +128,40 @@ print(p)
 dev.off()
 ```
 
+## 2. ECLAT Algorithm
+
+```{r}
+rules_eclat <- eclat(
+  retail_trans,
+  parameter = list(supp = 0.001, minlen = 2)
+)
+
+inspect(head(rules_eclat, 15))
+
+# convert to dataframe
+rules_eclat_df <- as(rules_eclat[1:15], "data.frame")
+
+# barplot for ECLAT
+p_eclat <- ggplot(rules_eclat_df, aes(x = reorder(items, support), y = support)) +
+  geom_col(fill = "#8E44AD") +
+  coord_flip() +
+  labs(
+    title = "Top 15 ECLAT Rules by Support",
+    x = "Itemset",
+    y = "Support"
+  ) +
+  theme_minimal(base_size = 12)
+
+p_eclat
+
+png("plots/eclat_rules_barplot.png", width = 1400, height = 1000)
+print(p_eclat)
+dev.off()
+```
+
 # Customer Clustering
+
+## 1. K-Means Clustering
 
 ```{r}
 # build customer features
@@ -196,7 +230,11 @@ p1
 png("plots/cluster_sizes.png", width = 1200, height = 900)
 print(p1)
 dev.off()
+```
 
+## 2. Cluster Profiling
+
+```{r}
 # join cluster labels back to original (unlogged) features
 cust_summary <- cust_df %>%
   inner_join(cust_feats %>% select(CustomerID, segment), by = "CustomerID") %>%
@@ -245,6 +283,26 @@ print(p2)
 dev.off()
 ```
 
+## 3. Hierarchical Clustering - Second Clustering Algorithm
+
+```{r}
+# use scaled log features for hierarchical clustering
+d_matrix <- dist(cust_scaled, method = "euclidean")
+
+# hierarchical clustering
+hc <- hclust(d_matrix, method = "ward.D2")
+
+# plot dendrogram
+plot(hc, labels = FALSE, main = "Hierarchical Clustering Dendrogram")
+
+# cut into 3 clusters
+hc_groups <- cutree(hc, k = 3)
+
+# save dendrogram
+png("plots/hierarchical_dendrogram.png", width = 1400, height = 1000)
+plot(hc, labels = FALSE, main = "Hierarchical Clustering Dendrogram")
+dev.off()
+```
 
 # Classification
 
@@ -268,6 +326,7 @@ train_y <- train_data$label
 test_x <- test_data %>% select(total_spent, total_qty, num_orders, avg_order)
 test_y <- test_data$label
 
+# 1. Decision Tree Classification
 # train decision tree
 model_dt <- train(
   train_x, train_y,
@@ -318,6 +377,7 @@ dev.off()
 # probability predictions for ROC
 dt_prob <- predict(model_dt, test_x, type = "prob")[, "High"]
 
+# 2. Random Forest Classification
 # train random forest
 set.seed(42)
 model_rf <- randomForest(
