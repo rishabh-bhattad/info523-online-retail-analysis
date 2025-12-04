@@ -78,6 +78,8 @@ n_distinct(retail_clean$CustomerID)
 
 ```{r}
 # filter UK data
+# We focus on UK customers because the dataset is heavily dominated by UK transactions.
+# Using only UK ensures cleaner, denser association rules without noise from countries with very few orders.
 retail_uk <- retail_clean %>%
   filter(Country == "United Kingdom")
 
@@ -288,19 +290,64 @@ dev.off()
 ```{r}
 # use scaled log features for hierarchical clustering
 d_matrix <- dist(cust_scaled, method = "euclidean")
-
-# hierarchical clustering
+# create full hierarchical model (needed for cutree)
 hc <- hclust(d_matrix, method = "ward.D2")
 
-# plot dendrogram
-plot(hc, labels = FALSE, main = "Hierarchical Clustering Dendrogram")
-
-# cut into 3 clusters
+# assign clusters from hierarchical model
 hc_groups <- cutree(hc, k = 3)
 
-# save dendrogram
-png("plots/hierarchical_dendrogram.png", width = 1400, height = 1000)
-plot(hc, labels = FALSE, main = "Hierarchical Clustering Dendrogram")
+# build cluster-wise averages for heatmap
+heatmap_data <- as.data.frame(cust_scaled)
+heatmap_data$cluster <- factor(hc_groups)
+
+cluster_means <- heatmap_data %>%
+  group_by(cluster) %>%
+  summarise(across(everything(), mean)) %>%
+  rename_with(~ gsub("log_", "", .), -cluster)
+
+# convert to long format for ggplot
+heatmap_long <- melt(cluster_means, id.vars = "cluster")
+
+# rename clusters to be more interpretable
+heatmap_long$cluster <- dplyr::recode(
+  heatmap_long$cluster,
+  "1" = "Cluster 1: High Activity",
+  "2" = "Cluster 2: Moderate Activity",
+  "3" = "Cluster 3: Low Activity"
+)
+
+heatmap_long$variable <- dplyr::recode(
+  heatmap_long$variable,
+  "total_spent" = "Total Spent (GBP)",
+  "total_qty" = "Total Quantity Purchased",
+  "num_orders" = "Number of Orders",
+  "avg_order" = "Average Order Value (GBP)"
+)
+
+# ggplot heatmap
+p_hc <- ggplot(heatmap_long, aes(x = variable, y = cluster, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "#EAF2F8", high = "#1B4F72") +
+  labs(
+    title = "Hierarchical Clustering – Average Feature Levels per Cluster",
+    subtitle = "Clusters are labeled to indicate relative activity based on spending, quantity, and orders",
+    x = "Customer Feature",
+    y = "Hierarchical Cluster",
+    fill = "Avg\nValue"
+  ) +
+  theme_minimal(base_size = 15) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 12)
+  )
+
+p_hc
+
+# save heatmap
+png("plots/hierarchical_clustering_heatmap.png", width = 1400, height = 1000)
+print(p_hc)
 dev.off()
 ```
 
