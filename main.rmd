@@ -134,6 +134,23 @@ print(top_products_plot)
 dev.off()
 ```
 
+```{r}
+# Monthly revenue pattern
+monthly_revenue <- retail_clean %>%
+  group_by(InvoiceMonth) %>%
+  summarise(monthly_revenue = sum(TotalPrice))
+
+Monthly_revenue_pattern <- ggplot(monthly_revenue, aes(x = InvoiceMonth, y = monthly_revenue)) +
+  geom_line(color = "#8E44AD", size = 1.2) +
+  geom_point(color = "#8E44AD", size = 2) +
+scale_y_continuous(labels = scales::label_number(big.mark = ",")) +
+  labs(title = "Monthly revenue pattern",
+       x = "Month", y = "Revenue")
+
+png("plots/Monthly_revenue_pattern.png", width = 1200, height = 900)
+print(Monthly_revenue_pattern)
+dev.off()
+```
 
 # Association Rule Mining
 ## 1. Apriori Algorithm
