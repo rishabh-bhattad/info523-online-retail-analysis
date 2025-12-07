@@ -42,7 +42,7 @@ retail_raw <- read_csv("data/online_retail.csv")
 glimpse(retail_raw)
 ```
 
-# Basic Cleaning & EDA
+# Basic Cleaning
 
 ```{r}
 summary(retail_raw)
@@ -92,6 +92,8 @@ cust_level_aggregation <- retail_clean %>%
 
 cust_level_aggregation
 ```
+
+
 
 # Association Rule Mining
 ## 1. Apriori Algorithm
