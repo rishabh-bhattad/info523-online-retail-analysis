@@ -21,6 +21,7 @@ for(ip in install_package){
 ```
 
 ```{r}
+
 library(tidyverse)
 library(lubridate)
 library(arules)
@@ -78,6 +79,7 @@ n_distinct(retail_clean$CustomerID)
 ```
 
 #Customer level aggregation per customer
+```{r}
 cust_level_aggregation <- retail_clean %>%
   group_by(CustomerID) %>%
   summarise(
@@ -93,6 +95,35 @@ cust_level_aggregation <- retail_clean %>%
 cust_level_aggregation
 ```
 
+#Exploratory Data analysis
+
+```{r}
+# Top countries by revenue
+top_countries <- retail_clean %>%
+  group_by(Country) %>%
+  summarise(total_revenue = sum(TotalPrice)) %>%
+  arrange(desc(total_revenue)) %>%
+  head(10)
+
+ggplot(top_countries, aes(x = reorder(Country, total_revenue), y = total_revenue)) +
+  geom_col(fill = "#1B9E77") +
+  coord_flip() +
+  labs(title = "Top 10 Countries", x = "Country", y = "Revenue")
+```
+
+```{r}
+# Top products by revenue
+top_products <- retail_clean %>%
+  group_by(Description) %>%
+  summarise(total_revenue = sum(TotalPrice)) %>%
+  arrange(desc(total_revenue)) %>%
+  head(10)
+
+ggplot(top_products, aes(x = reorder(Description, total_revenue), y = total_revenue)) +
+  geom_col(fill = "#28B463") +
+  coord_flip() +
+  labs(title = "Top 10 Products", x = "Product", y = "Revenue")
+```
 
 
 # Association Rule Mining
