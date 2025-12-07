@@ -106,10 +106,14 @@ top_countries <- retail_clean %>%
   arrange(desc(total_revenue)) %>%
   head(10)
 
-ggplot(top_countries, aes(x = reorder(Country, total_revenue), y = total_revenue)) +
+top_countries_plot <- ggplot(top_countries, aes(x = reorder(Country, total_revenue), y = total_revenue)) +
   geom_col(fill = "#1B9E77") +
   coord_flip() +
   labs(title = "Top 10 Countries", x = "Country", y = "Revenue")
+
+png("plots/top_countries_plot.png", width = 1200, height = 900)
+print(top_countries_plot)
+dev.off()
 ```
 
 ```{r}
@@ -120,10 +124,14 @@ top_products <- retail_clean %>%
   arrange(desc(total_revenue)) %>%
   head(10)
 
-ggplot(top_products, aes(x = reorder(Description, total_revenue), y = total_revenue)) +
+top_products_plot <- ggplot(top_products, aes(x = reorder(Description, total_revenue), y = total_revenue)) +
   geom_col(fill = "#28B463") +
   coord_flip() +
   labs(title = "Top 10 Products", x = "Product", y = "Revenue")
+
+png("plots/top_products_plot.png", width = 1200, height = 900)
+print(top_products_plot)
+dev.off()
 ```
 
 
