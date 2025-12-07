@@ -1,6 +1,7 @@
 ---
 title: "INFO 523 – Online Retail Data Mining Project"
 author: "Rishabh Bhattad"
+author: "Khushi Chavan"
 output:
   word_document: default
 ---
@@ -74,6 +75,22 @@ summary(retail_clean$Quantity)
 summary(retail_clean$UnitPrice)
 sum(is.na(retail_clean$CustomerID))
 n_distinct(retail_clean$CustomerID)
+```
+
+#Customer level aggregation per customer
+cust_level_aggregation <- retail_clean %>%
+  group_by(CustomerID) %>%
+  summarise(
+    total_amt_spent = sum(TotalPrice),
+    total_quantity = sum(Quantity),
+    num_of_orders = n_distinct(InvoiceNo),
+    average_spent_order = mean(TotalPrice),
+    average_items_per_order = total_quantity/num_of_orders,
+    recency = as.numeric(Sys.Date() - max(InvoiceDate)),
+    .groups = "drop"
+  )
+
+cust_level_aggregation
 ```
 
 # Association Rule Mining
