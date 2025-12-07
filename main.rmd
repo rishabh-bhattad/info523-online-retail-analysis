@@ -12,7 +12,7 @@ This project uses the Kaggle Online Retail dataset to perform association rule m
 
 # Check and install the required packages only
 ```{r}
-install_package <- c("tidyverse", "lubridate", "arules", "arulesViz", "cluster", "factoextra", "caret", "reshape2", "pROC", "randomForest")
+install_package <- c("tidyverse", "lubridate", "arules", "arulesViz", "cluster", "factoextra", "caret", "reshape2", "pROC", "randomForest", "ggplot2")
 
 for(ip in install_package){
   if(!require(ip, character.only = TRUE)) 
@@ -32,6 +32,7 @@ library(caret)
 library(reshape2)
 library(pROC)
 library(randomForest)
+library(ggplot2)
 
 set.seed(42)
 ```
@@ -83,11 +84,11 @@ n_distinct(retail_clean$CustomerID)
 cust_level_aggregation <- retail_clean %>%
   group_by(CustomerID) %>%
   summarise(
-    total_amt_spent = sum(TotalPrice),
-    total_quantity = sum(Quantity),
-    num_of_orders = n_distinct(InvoiceNo),
-    average_spent_order = mean(TotalPrice),
-    average_items_per_order = total_quantity/num_of_orders,
+    total_spent = sum(TotalPrice),
+    total_qty = sum(Quantity),
+    num_orders = n_distinct(InvoiceNo),
+    avg_order = mean(TotalPrice),
+    avg_items_per_order = total_qty/num_orders,
     recency = as.numeric(Sys.Date() - max(InvoiceDate)),
     .groups = "drop"
   )
@@ -163,8 +164,6 @@ inspect(head(rules_top, 20))
 # barplot of top rules
 rules_df <- as(rules_top[1:15], "data.frame")
 
-library(ggplot2)
-
 p <- ggplot(rules_df, aes(x = reorder(rules, lift), y = lift)) +
   geom_col(fill = "#2E86C1") +
   coord_flip() +
@@ -219,23 +218,14 @@ dev.off()
 ## 1. K-Means Clustering
 
 ```{r}
-# build customer features
-cust_df <- retail_clean %>%
-  group_by(CustomerID) %>%
-  summarise(
-    total_spent = sum(TotalPrice),
-    total_qty = sum(Quantity),
-    num_orders = n_distinct(InvoiceNo),
-    avg_order = mean(TotalPrice)
-  )
 
 # remove extreme spenders (top 1%) for more stable clusters
-q99 <- quantile(cust_df$total_spent, 0.99, na.rm = TRUE)
-cust_df <- cust_df %>%
+q99 <- quantile(cust_level_aggregation$total_spent, 0.99, na.rm = TRUE)
+cust_level_aggregation <- cust_level_aggregation %>%
   filter(total_spent <= q99)
 
 # log transform to reduce skew
-cust_feats <- cust_df %>%
+cust_feats <- cust_level_aggregation %>%
   mutate(
     log_total_spent = log1p(total_spent),
     log_total_qty = log1p(total_qty),
@@ -291,7 +281,7 @@ dev.off()
 
 ```{r}
 # join cluster labels back to original (unlogged) features
-cust_summary <- cust_df %>%
+cust_summary <- cust_level_aggregation %>%
   inner_join(cust_feats %>% select(CustomerID, segment), by = "CustomerID") %>%
   group_by(segment) %>%
   summarise(
@@ -408,7 +398,7 @@ dev.off()
 
 ```{r}
 # create label for high-value customers
-cust_summary2 <- cust_df %>%
+cust_summary2 <- cust_level_aggregation %>%
   inner_join(cust_feats %>% select(CustomerID, segment), by = "CustomerID") %>%
   mutate(label = ifelse(segment == "High-Value Frequent Buyers", "High", "Not_High")) %>%
   mutate(label = factor(label))
