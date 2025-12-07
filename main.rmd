@@ -54,6 +54,7 @@ sum(is.na(retail_raw$CustomerID))
 retail_clean <- retail_raw %>%
   # remove missing customer IDs
   filter(!is.na(CustomerID)) %>%
+  #remove negative quantities and prices
   filter(Quantity > 0, UnitPrice > 0) %>%
   # remove cancelled invoices
   filter(!str_starts(InvoiceNo, "C")) %>%
