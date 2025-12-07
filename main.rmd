@@ -9,12 +9,14 @@ output:
 
 This project uses the Kaggle Online Retail dataset to perform association rule mining, clustering, and classification.
 
-# Setup
+# Check and install the required packages only
 ```{r}
-install.packages("factoextra")
-install.packages("caret")
-install.packages("tidyverse")
-install.packages("randomForest")
+install_package <- c("tidyverse", "lubridate", "arules", "arulesViz", "cluster", "factoextra", "caret", "reshape2", "pROC", "randomForest")
+
+for(ip in install_package){
+  if(!require(ip, character.only = TRUE)) 
+    install.packages(ip)
+}
 ```
 
 ```{r}
