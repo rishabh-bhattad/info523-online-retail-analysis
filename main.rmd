@@ -1,8 +1,9 @@
 ---
 title: "INFO 523 – Online Retail Data Mining Project"
 author: "Rishabh Bhattad"
-author: "Khushi Chavan"
+teammate: "Khushi Chavan"
 output:
+  pdf_document: default
   word_document: default
 ---
 
