@@ -110,7 +110,8 @@ top_countries <- retail_clean %>%
 top_countries_plot <- ggplot(top_countries, aes(x = reorder(Country, total_revenue), y = total_revenue)) +
   geom_col(fill = "#1B9E77") +
   coord_flip() +
-  labs(title = "Top 10 Countries", x = "Country", y = "Revenue")
+  labs(title = "Top 10 Countries", x = "Country", y = "Revenue") +
+  theme(text = element_text(size = 25))
 
 png("plots/top_countries_plot.png", width = 1200, height = 900)
 print(top_countries_plot)
@@ -128,7 +129,8 @@ top_products <- retail_clean %>%
 top_products_plot <- ggplot(top_products, aes(x = reorder(Description, total_revenue), y = total_revenue)) +
   geom_col(fill = "#28B463") +
   coord_flip() +
-  labs(title = "Top 10 Products", x = "Product", y = "Revenue")
+  labs(title = "Top 10 Products", x = "Product", y = "Revenue") +
+  theme(text = element_text(size = 25))
 
 png("plots/top_products_plot.png", width = 1200, height = 900)
 print(top_products_plot)
@@ -146,7 +148,8 @@ Monthly_revenue_pattern <- ggplot(monthly_revenue, aes(x = InvoiceMonth, y = mon
   geom_point(color = "#8E44AD", size = 2) +
 scale_y_continuous(labels = scales::label_number(big.mark = ",")) +
   labs(title = "Monthly revenue pattern",
-       x = "Month", y = "Revenue")
+       x = "Month", y = "Revenue") +
+  theme(text = element_text(size = 25))
 
 png("plots/Monthly_revenue_pattern.png", width = 1200, height = 900)
 print(Monthly_revenue_pattern)
@@ -198,7 +201,7 @@ p <- ggplot(rules_df, aes(x = reorder(rules, lift), y = lift)) +
     x = "Rule",
     y = "Lift"
   ) +
-  theme_minimal(base_size = 12)
+  theme_minimal(base_size = 16)
 
 p
 
@@ -230,7 +233,7 @@ p_eclat <- ggplot(rules_eclat_df, aes(x = reorder(items, support), y = support))
     x = "Itemset",
     y = "Support"
   ) +
-  theme_minimal(base_size = 12)
+  theme_minimal(base_size = 20)
 
 p_eclat
 
@@ -293,7 +296,8 @@ p1 <- ggplot(cluster_sizes, aes(x = segment, y = count, fill = segment)) +
     y = "Customer count",
     fill = "Segment"
   ) +
-  theme_minimal(base_size = 12)
+  theme_minimal(base_size = 12) +
+  theme(text = element_text(size = 25))
 
 p1
 
@@ -344,7 +348,12 @@ p2 <- ggplot(cluster_long, aes(x = segment, y = value, fill = segment)) +
     y = "Average metric value",
     fill = "Segment"
   ) +
-  theme_minimal(base_size = 12)
+  theme_minimal(base_size = 12)  +
+  theme(
+    text = element_text(size = 25),
+    axis.text.x = element_blank(),      
+    axis.ticks.x = element_blank()     
+  )
 
 p2
 
@@ -410,7 +419,8 @@ p_hc <- ggplot(heatmap_long, aes(x = variable, y = cluster, fill = value)) +
     axis.text.y = element_text(face = "bold"),
     plot.title = element_text(face = "bold"),
     plot.subtitle = element_text(size = 12)
-  )
+  ) +
+  theme(text = element_text(size = 25))
 
 p_hc
 
@@ -477,7 +487,8 @@ p3 <- ggplot(imp_dt, aes(x = reorder(Feature, Overall), y = Overall, fill = Feat
   theme(
     plot.title = element_text(face = "bold"),
     axis.title = element_text(face = "bold")
-  )
+  ) +
+  theme(text = element_text(size = 25))
 
 p3
 
@@ -529,7 +540,7 @@ better_model <- ifelse(auc_rf > auc_dt,
                        "Random Forest performs better",
                        "Decision Tree performs better")
 
-text(0.65, 0.05, better_model, col = "black", font = 2, cex = 1.4)
+text(0.65, 0.05, better_model, col = "black", font = 7, cex = 1.4)
 
 legend("bottomright",
        legend = c("Decision Tree", "Random Forest"),
@@ -561,7 +572,8 @@ p4 <- ggplot(rf_imp_df, aes(x = reorder(Feature, Importance), y = Importance, fi
   theme(
     plot.title = element_text(face = "bold"),
     axis.title = element_text(face = "bold")
-  )
+  ) +
+  theme(text = element_text(size = 25))
 
 p4
 
