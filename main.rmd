@@ -433,17 +433,72 @@ dev.off()
 # Classification
 
 ```{r}
-# create label for high-value customers
-cust_summary2 <- cust_level_aggregation %>%
-  inner_join(cust_feats %>% select(CustomerID, segment), by = "CustomerID") %>%
-  mutate(label = ifelse(segment == "High-Value Frequent Buyers", "High", "Not_High")) %>%
-  mutate(label = factor(label))
-
-# split data
 set.seed(42)
-train_index <- createDataPartition(cust_summary2$label, p = 0.8, list = FALSE)
-train_data <- cust_summary2[train_index, ]
-test_data <- cust_summary2[-train_index, ]
+
+make_log_feats <- function(df) {
+  df %>%
+    mutate(
+      log_total_spent = log1p(total_spent),
+      log_total_qty = log1p(total_qty),
+      log_num_orders = log1p(num_orders),
+      log_avg_order = log1p(avg_order)
+    ) %>%
+    select(CustomerID, starts_with("log_"))
+}
+
+# split customers first
+train_index <- createDataPartition(cust_level_aggregation$CustomerID, p = 0.8, list = FALSE)
+cust_train <- cust_level_aggregation[train_index, ]
+cust_test <- cust_level_aggregation[-train_index, ]
+
+# log + scale using training stats only
+train_feats <- make_log_feats(cust_train)
+test_feats <- make_log_feats(cust_test)
+
+train_scaled <- scale(train_feats[, -1])
+train_center <- attr(train_scaled, "scaled:center")
+train_scale <- attr(train_scaled, "scaled:scale")
+
+test_scaled <- scale(
+  test_feats[, -1],
+  center = train_center,
+  scale = train_scale
+)
+
+# k-means fit on training customers only
+set.seed(42)
+km_train <- kmeans(train_scaled, centers = 3, nstart = 25)
+
+segment_names <- c(
+  "High-Value Frequent Buyers",
+  "Low-Value Casual Buyers",
+  "Large-Basket Buyers"
+)
+
+train_segments <- segment_names[km_train$cluster]
+
+assign_to_centroid <- function(mat, centers) {
+  apply(mat, 1, function(r) {
+    dists <- apply(centers, 1, function(cntr) sum((r - cntr) ^ 2))
+    which.min(dists)
+  })
+}
+
+test_segments <- segment_names[assign_to_centroid(test_scaled, km_train$centers)]
+
+train_data <- cust_train %>%
+  mutate(segment = train_segments) %>%
+  mutate(label = factor(
+    ifelse(segment == "High-Value Frequent Buyers", "High", "Not_High"),
+    levels = c("Not_High", "High")
+  ))
+
+test_data <- cust_test %>%
+  mutate(segment = test_segments) %>%
+  mutate(label = factor(
+    ifelse(segment == "High-Value Frequent Buyers", "High", "Not_High"),
+    levels = c("Not_High", "High")
+  ))
 
 # build features
 train_x <- train_data %>% select(total_spent, total_qty, num_orders, avg_order)
@@ -453,7 +508,6 @@ test_x <- test_data %>% select(total_spent, total_qty, num_orders, avg_order)
 test_y <- test_data$label
 
 # 1. Decision Tree Classification
-# train decision tree
 model_dt <- train(
   train_x, train_y,
   method = "rpart",
@@ -462,14 +516,11 @@ model_dt <- train(
 
 model_dt
 
-# predictions
 pred_dt <- predict(model_dt, test_x)
 
-# confusion matrix
 cm_dt <- confusionMatrix(pred_dt, test_y)
 cm_dt
 
-# plot variable importance
 imp_dt <- varImp(model_dt)$importance
 imp_dt$Feature <- rownames(imp_dt)
 
@@ -492,7 +543,6 @@ p3 <- ggplot(imp_dt, aes(x = reorder(Feature, Overall), y = Overall, fill = Feat
 
 p3
 
-# save importance plot
 png("plots/classification_feature_importance.png", width = 1400, height = 1000)
 print(p3)
 dev.off()
@@ -510,15 +560,16 @@ set.seed(42)
 model_rf <- randomForest(
   label ~ total_spent + total_qty + num_orders + avg_order,
   data = train_data,
-  ntree = 300
+  ntree = 300,
+  importance = TRUE
 )
 
 # RF probabilities
 rf_prob <- predict(model_rf, test_x, type = "prob")[, "High"]
 
 # ROC objects
-roc_dt <- roc(test_y, dt_prob)
-roc_rf <- roc(test_y, rf_prob)
+roc_dt <- roc(test_y, dt_prob, levels = c("Not_High", "High"), direction = "<")
+roc_rf <- roc(test_y, rf_prob, levels = c("Not_High", "High"), direction = "<")
 
 # plot ROC curves
 png("plots/classification_roc_curve.png", width = 1400, height = 1000)
@@ -540,7 +591,7 @@ better_model <- ifelse(auc_rf > auc_dt,
                        "Random Forest performs better",
                        "Decision Tree performs better")
 
-text(0.65, 0.05, better_model, col = "black", font = 7, cex = 1.4)
+text(0.65, 0.05, better_model, col = "black", font = 2, cex = 1.4)
 
 legend("bottomright",
        legend = c("Decision Tree", "Random Forest"),
